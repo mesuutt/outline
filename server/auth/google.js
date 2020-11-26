@@ -16,6 +16,7 @@ const client = new OAuth2Client(
   `${process.env.URL}/auth/google.callback`
 );
 const allowedDomainsEnv = process.env.GOOGLE_ALLOWED_DOMAINS;
+const allowedEmailsEnv = process.env.GOOGLE_ALLOWED_EMAILS;
 
 // start the oauth process and redirect user to Google
 router.get("google", async (ctx) => {
@@ -42,20 +43,16 @@ router.get("google.callback", auth({ required: false }), async (ctx) => {
     url: "https://www.googleapis.com/oauth2/v1/userinfo",
   });
 
-  if (!profile.data.hd) {
-    ctx.redirect("/?notice=google-hd");
+  const allowedEmails = allowedEmailsEnv && allowedEmailsEnv.split(',');
+
+  if (!allowedEmails || !allowedEmails.includes(profile.data.email)) {
+    ctx.redirect('/?notice=hd-not-allowed');
     return;
   }
 
-  // allow all domains by default if the env is not set
-  const allowedDomains = allowedDomainsEnv && allowedDomainsEnv.split(",");
-  if (allowedDomains && !allowedDomains.includes(profile.data.hd)) {
-    ctx.redirect("/?notice=hd-not-allowed");
-    return;
-  }
+  let googleId = process.env.TEAM_ID;
 
-  const googleId = profile.data.hd;
-  const hostname = profile.data.hd.split(".")[0];
+  const hostname = googleId.split('.')[0];
   const teamName = capitalize(hostname);
 
   // attempt to get logo from Clearbit API. If one doesn't exist then
